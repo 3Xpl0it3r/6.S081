@@ -80,3 +80,12 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+//
+uint64 freemem(void)
+{
+  int free_mem = 0;
+  for(struct run *curp = kmem.freelist; curp != 0 ; curp=curp->next)
+    free_mem += PGSIZE;
+  return free_mem;
+}

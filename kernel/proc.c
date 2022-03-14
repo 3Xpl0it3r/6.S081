@@ -289,6 +289,10 @@ fork(void)
   }
   np->sz = p->sz;
 
+
+  // copy sys mark from parent mask
+  np->sys_mask = p->sys_mask;
+
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
@@ -653,4 +657,17 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+
+
+// syscall lab
+uint64 nproc(void)
+{
+    int n_proc = 0;
+    for (int i = 0; i < NPROC; ++i) {
+        if (proc[i].state == UNUSED) freeproc(&proc[i]);
+        else n_proc++;
+    }
+    return n_proc;
 }

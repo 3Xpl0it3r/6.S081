@@ -193,11 +193,16 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+<<<<<<< HEAD
 	$U/_sleep\
 	$U/_pingpong\
 	$U/_primes\
 	$U/_find\
 	$U/_xargs\
+=======
+	$U/_trace\
+	$U/_sysinfotest\
+>>>>>>> syscall
 
 
 

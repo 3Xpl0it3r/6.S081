@@ -76,4 +76,9 @@ xv6.out*
 submissions/
 ph
 barrier
+<<<<<<< HEAD
 >>>>>>> util
+=======
+
+.idea/
+>>>>>>> syscall
