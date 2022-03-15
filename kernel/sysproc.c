@@ -102,7 +102,6 @@ uint64
 sys_trace(void)
 {
     int sys_mask;
-
     if(argint(0, &sys_mask))
         return -1;
     myproc()->sys_mask = sys_mask;

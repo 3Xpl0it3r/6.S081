@@ -1,5 +1,2 @@
-<<<<<<< HEAD
-LAB=util
-=======
 LAB=syscall
->>>>>>> syscall
+# LAB=utils

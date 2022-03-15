@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Prerequisites
 *.d
 
@@ -51,34 +50,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-=======
-*~
-_*
-*.o
-*.d
-*.asm
-*.sym
-*.img
-vectors.S
-bootblock
-entryother
-initcode
-initcode.out
-kernelmemfs
-mkfs
-kernel/kernel
-user/usys.S
-.gdbinit
-myapi.key
-*-handin.tar.gz
-xv6.out*
-.vagrant/
-submissions/
-ph
-barrier
-<<<<<<< HEAD
->>>>>>> util
-=======
+
 
 .idea/
->>>>>>> syscall
