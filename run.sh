@@ -6,4 +6,8 @@ then
     docker build . -t ${image} -f build/Dockerfile
 fi
 
+<<<<<<< HEAD
 docker run -it --name xv6 -v `pwd`:/xv6/ ${image} bash
+=======
+docker run -it --rm --name xv6 -v `pwd`:/xv6/ ${image} bash
+>>>>>>> pgtbl
