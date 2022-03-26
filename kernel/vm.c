@@ -432,3 +432,52 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+
+void _vmprint(pagetable_t pagetable, int level){
+    // copy from freewalk
+    // there are 2^9 = 512 PTEs in a page table.
+    for(int i = 0; i < 512; i++){
+        pte_t pte = pagetable[i];
+        if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+            // this PTE points to a lower-level page table.
+            uint64 child = PTE2PA(pte);
+            for (int pos = 0; pos < level ; pos++)
+                printf(".. ");
+            printf("..%d: pte %p pa %p\n", i, pte, child);
+            _vmprint((pagetable_t)child, level +1 );
+        } else if(pte & PTE_V){
+            // leaf level
+            uint64  child = PTE2PA(pte);
+            printf(".. .. ..%d: pte %p pa %p\n", i,pte, child);
+        }
+    }
+}
+
+void vmprint(pagetable_t pagetable)
+{
+    printf("page table %p\n", pagetable);
+    _vmprint(pagetable, 0);
+}
+
+
+
+int pgaccess(pagetable_t pagetable, uint64 va, int npages, uint64 buffer)
+{
+    uint64 base;
+    pte_t *pte;
+    uint64 bitmask = 0x00000000;
+    int shift = 0;
+
+    for(base = va ; base < va + npages*PGSIZE; base += PGSIZE, shift++){
+        if((pte = walk(pagetable, base, 0)) == 0)
+            panic("pgaccess: walk");
+        if((*pte & PTE_A) != 0){
+            *pte &= ~PTE_A;
+            bitmask |= (1 << shift);
+        }
+    }
+    if(copyout(pagetable,buffer, (char*)&bitmask, sizeof(bitmask)) < 0)
+        return -1;
+    return 0;
+}
