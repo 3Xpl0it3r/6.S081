@@ -227,7 +227,7 @@ userinit(void)
 {
   struct proc *p;
 
-  p = allocproc();
+  p = allocproc();  // 申请一个proc对象
   initproc = p;
   
   // allocate one user page and copy init's instructions

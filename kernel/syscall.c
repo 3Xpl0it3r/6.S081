@@ -137,7 +137,7 @@ static uint64 (*syscalls[])(void) = {
 
 static char* syscall_string[23] = {
         "fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup", "getpid", "sbrk", "sleep", "uptime",
-        "open", "write", "mknod", "unlink", "link", "mkdir", "close", "trace",
+        "open", "write", "mknod", "unlink", "link", "mkdir", "close", "trace", "sysinfo",
 };
 
 void
@@ -145,11 +145,11 @@ syscall(void)
 {
   int num;
   struct proc *p = myproc();
-
+    // a7寄存器存放syscall的编号
   num = p->trapframe->a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    p->trapframe->a0 = syscalls[num]();
-    if (p->sys_mask & (1 << num))
+    p->trapframe->a0 = syscalls[num]();     // 函数返回值,对应syscall函数
+    if (p->sys_mask & (1 << num)) // 如果master是需要追踪的则打印debug信息
         printf("%d: syscall %s -> %d\n",p->pid,syscall_string[num-1], p->trapframe->a0);
 
   } else {
