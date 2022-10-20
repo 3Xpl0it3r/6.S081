@@ -1,4 +1,4 @@
-image="l0calh0st.cn/xv6-riscv"
+image="l0calh0st/xv6-riscv"
 img_exist=`docker images|grep ${image}`
 if [ -z "${img_exist}" ]
 then

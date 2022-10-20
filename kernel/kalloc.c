@@ -71,12 +71,12 @@ kalloc(void)
   struct run *r;
 
   acquire(&kmem.lock);
-  r = kmem.freelist;
+  r = kmem.freelist; // 从freelist里面提取一个元素(freelist里面是可分配的)
   if(r)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
   if(r)
-    memset((char*)r, 5, PGSIZE); // fill with junk
+    memset((char*)r, 5, PGSIZE); // fill with junk // 初始化内存
   return (void*)r;
 }
