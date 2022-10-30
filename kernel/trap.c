@@ -41,13 +41,13 @@ usertrap(void)
   if((r_sstatus() & SSTATUS_SPP) != 0)
     panic("usertrap: not from user mode");
 
-  // send interrupts and exceptions to kerneltrap(),
-  // since we're now in the kernel.
+  // send interrupts and exceptions to kerneltrap(), since we're now in the kernel.
+  // 首先将stvec的地址切换到kernel
   w_stvec((uint64)kernelvec);
 
   struct proc *p = myproc();
   
-  // save user program counter.
+  // save user program counter. 由于p->trapframe里面存储的是物理地址,因此即使在kernelpagetable里面仍然是可以调用它的
   p->trapframe->epc = r_sepc();
   
   if(r_scause() == 8){
@@ -59,7 +59,7 @@ usertrap(void)
     // sepc points to the ecall instruction,
     // but we want to return to the next instruction.
     p->trapframe->epc += 4;
-
+     //中断会修改sstatus 和  c registers寄存器，因此要关闭中断
     // an interrupt will change sstatus &c registers,
     // so don't enable until done with those registers.
     intr_on();
@@ -67,7 +67,7 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
+  } else { // 异常情况下,kernel会直接kill掉这个进程
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
@@ -77,8 +77,18 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2){
+    //some other ting
+    if (p->alarm.interval != 0 && p->alarm.status == ALARM_STATUS_FREE){
+        if(p->alarm.cost++ == p->alarm.interval){
+          p->alarm.cost = 0;
+          p->alarm.context = *p->trapframe;
+          p->trapframe->epc = (uint64)p->alarm.handler;
+          p->alarm.status = ALARM_STATUS_RUNNING;
+        }
+    }
     yield();
+  }
 
   usertrapret();
 }
@@ -94,14 +104,16 @@ usertrapret(void)
   // we're about to switch the destination of traps from
   // kerneltrap() to usertrap(), so turn off interrupts until
   // we're back in user space, where usertrap() is correct.
-  intr_off();
+  intr_off(); // 开始关闭中断
 
   // send syscalls, interrupts, and exceptions to trampoline.S
   w_stvec(TRAMPOLINE + (uservec - trampoline));
 
   // set up trapframe values that uservec will need when
   // the process next re-enters the kernel.
+  // 保存kernel的页表
   p->trapframe->kernel_satp = r_satp();         // kernel page table
+  // 设置process的kernelstack信息
   p->trapframe->kernel_sp = p->kstack + PGSIZE; // process's kernel stack
   p->trapframe->kernel_trap = (uint64)usertrap;
   p->trapframe->kernel_hartid = r_tp();         // hartid for cpuid()
@@ -124,7 +136,7 @@ usertrapret(void)
   // jump to trampoline.S at the top of memory, which 
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
-  uint64 fn = TRAMPOLINE + (userret - trampoline);
+  uint64 fn = TRAMPOLINE + (userret - trampoline); // 返回到trampoline.S
   ((void (*)(uint64,uint64))fn)(TRAPFRAME, satp);
 }
 

@@ -132,3 +132,17 @@ printfinit(void)
   initlock(&pr.lock, "pr");
   pr.locking = 1;
 }
+
+
+
+// lab trap , backtrace
+// 这里获取的是kernel'backtrace,而不是用户态,因此栈帧是内核态的栈帧,直接取地址就好,而不需要通过walkaddr 方式取地址
+void
+backtrace()
+{
+    uint64 sf_fp = r_fp();
+    printf("backtrace:\n");
+    for (uint64 cur_fp = sf_fp; cur_fp < PGROUNDUP(sf_fp); cur_fp = *((uint64*)(cur_fp-16))) {
+        printf("%p\n", *(uint64 *)(cur_fp - 8));
+    }
+}

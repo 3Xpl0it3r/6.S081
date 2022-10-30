@@ -141,6 +141,12 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  memset(&p->alarm, 0, sizeof(p->alarm));
+  p->alarm.interval = 0;
+  p->alarm.cost = 0;
+  p->alarm.status = ALARM_STATUS_FREE;
+  memset(&p->alarm.context, 0, sizeof(p->alarm.context));
+
   return p;
 }
 
@@ -653,4 +659,28 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+uint64
+sys_sigalarm(void)
+{
+    int alarm_interval = 0;
+    uint64 alarm_handler  = 0;
+    // get argument for syscall
+    if (argint(0, &alarm_interval) <0 || argaddr(1, &alarm_handler) < 0){
+        return -1;
+    }
+    struct proc *p = myproc();
+    p->alarm.interval = alarm_interval;
+    p->alarm.handler = (void(*)())alarm_handler;
+
+    return 0;
+}
+
+uint64 sys_sigreturn(void)
+{
+    struct proc *p = myproc();
+    *p->trapframe = p->alarm.context;
+    p->alarm.status = ALARM_STATUS_FREE;
+    return 0;
 }

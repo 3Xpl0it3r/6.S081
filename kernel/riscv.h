@@ -269,7 +269,7 @@ r_time()
   return x;
 }
 
-// enable device interrupts
+// enable device interrupts // 启用设备中断
 static inline void
 intr_on()
 {
@@ -322,6 +322,19 @@ r_ra()
   asm volatile("mv %0, ra" : "=r" (x) );
   return x;
 }
+
+
+// for lab custome code
+// current function frame pointer, this is stored in register s0
+static inline uint64
+r_fp()
+{
+  uint64 x;
+  asm volatile("mv %0, s0" : "=r" (x) );
+  return x;
+}
+
+
 
 // flush the TLB.
 static inline void

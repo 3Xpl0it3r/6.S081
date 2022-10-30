@@ -12,6 +12,7 @@ kernelvec:
         addi sp, sp, -256
 
         // save the registers.
+        // 保存当前kernel线程的寄存器,保存在栈上
         sd ra, 0(sp)
         sd sp, 8(sp)
         sd gp, 16(sp)
@@ -45,6 +46,7 @@ kernelvec:
         sd t6, 240(sp)
 
 	// call the C trap handler in trap.c
+    // 调用 kerneltrap来处理
         call kerneltrap
 
         // restore registers.

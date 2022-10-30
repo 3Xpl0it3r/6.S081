@@ -58,17 +58,21 @@ sys_sleep(void)
   int n;
   uint ticks0;
 
-  if(argint(0, &n) < 0)
+  if(argint(0, &n) < 0){
+    backtrace();
     return -1;
+  }
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < n){
     if(myproc()->killed){
       release(&tickslock);
+      backtrace();
       return -1;
     }
     sleep(&ticks, &tickslock);
   }
+  backtrace();
   release(&tickslock);
   return 0;
 }
