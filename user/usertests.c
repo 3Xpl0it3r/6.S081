@@ -17,9 +17,10 @@
 // prints "OK".
 //
 
-#define BUFSZ  ((MAXOPBLOCKS+2)*BSIZE)
+#define BUFSZ  (MAXOPBLOCKS+2)*BSIZE
 
 char buf[BUFSZ];
+char name[3];
 
 // what if you pass ridiculous pointers to system calls
 // that read user memory with copyin?
@@ -542,11 +543,11 @@ writetest(char *s)
   }
   for(i = 0; i < N; i++){
     if(write(fd, "aaaaaaaaaa", SZ) != SZ){
-      printf("%s: error: write aa %d new file failed\n", s, i);
+      printf("%s: error: write aa %d new file failed\n", i);
       exit(1);
     }
     if(write(fd, "bbbbbbbbbb", SZ) != SZ){
-      printf("%s: error: write bb %d new file failed\n", s, i);
+      printf("%s: error: write bb %d new file failed\n", i);
       exit(1);
     }
   }
@@ -583,7 +584,7 @@ writebig(char *s)
   for(i = 0; i < MAXFILE; i++){
     ((int*)buf)[0] = i;
     if(write(fd, buf, BSIZE) != BSIZE){
-      printf("%s: error: write big file failed\n", s, i);
+      printf("%s: error: write big file failed\n", i);
       exit(1);
     }
   }
@@ -601,16 +602,16 @@ writebig(char *s)
     i = read(fd, buf, BSIZE);
     if(i == 0){
       if(n == MAXFILE - 1){
-        printf("%s: read only %d blocks from big", s, n);
+        printf("%s: read only %d blocks from big", n);
         exit(1);
       }
       break;
     } else if(i != BSIZE){
-      printf("%s: read failed %d\n", s, i);
+      printf("%s: read failed %d\n", i);
       exit(1);
     }
     if(((int*)buf)[0] != n){
-      printf("%s: read content of block %d is %d\n", s,
+      printf("%s: read content of block %d is %d\n",
              n, ((int*)buf)[0]);
       exit(1);
     }
@@ -630,7 +631,6 @@ createtest(char *s)
   int i, fd;
   enum { N=52 };
 
-  char name[3];
   name[0] = 'a';
   name[2] = '\0';
   for(i = 0; i < N; i++){
@@ -648,6 +648,8 @@ createtest(char *s)
 
 void dirtest(char *s)
 {
+  printf("mkdir test\n");
+
   if(mkdir("dir0") < 0){
     printf("%s: mkdir failed\n", s);
     exit(1);
@@ -667,6 +669,7 @@ void dirtest(char *s)
     printf("%s: unlink dir0 failed\n", s);
     exit(1);
   }
+  printf("%s: mkdir test ok\n");
 }
 
 void
@@ -779,36 +782,6 @@ pipe1(char *s)
   }
 }
 
-
-// test if child is killed (status = -1)
-void
-killstatus(char *s)
-{
-  int xst;
-  
-  for(int i = 0; i < 100; i++){
-    int pid1 = fork();
-    if(pid1 < 0){
-      printf("%s: fork failed\n", s);
-      exit(1);
-    }
-    if(pid1 == 0){
-      while(1) {
-        getpid();
-      }
-      exit(0);
-    }
-    sleep(1);
-    kill(pid1);
-    wait(&xst);
-    if(xst != -1) {
-       printf("%s: status should be -1\n", s);
-       exit(1);
-    }
-  }
-  exit(0);
-}
-
 // meant to be run w/ at most two CPUs
 void
 preempt(char *s)
@@ -818,7 +791,7 @@ preempt(char *s)
 
   pid1 = fork();
   if(pid1 < 0) {
-    printf("%s: fork failed", s);
+    printf("%s: fork failed");
     exit(1);
   }
   if(pid1 == 0)
@@ -843,7 +816,7 @@ preempt(char *s)
   if(pid3 == 0){
     close(pfds[0]);
     if(write(pfds[1], "x", 1) != 1)
-      printf("%s: preempt write error", s);
+      printf("%s: preempt write error");
     close(pfds[1]);
     for(;;)
       ;
@@ -851,7 +824,7 @@ preempt(char *s)
 
   close(pfds[1]);
   if(read(pfds[0], buf, sizeof(buf)) != 1){
-    printf("%s: preempt read error", s);
+    printf("%s: preempt read error");
     return;
   }
   close(pfds[0]);
@@ -1372,7 +1345,7 @@ linktest(char *s)
 
   unlink("lf2");
   if(link("lf2", "lf1") >= 0){
-    printf("%s: link non-existent succeeded! oops\n", s);
+    printf("%s: link non-existant succeeded! oops\n", s);
     exit(1);
   }
 
@@ -1758,60 +1731,6 @@ bigwrite(char *s)
   }
 }
 
-// concurrent writes to try to provoke deadlock in the virtio disk
-// driver.
-void
-manywrites(char *s)
-{
-  int nchildren = 4;
-  int howmany = 30; // increase to look for deadlock
-  
-  for(int ci = 0; ci < nchildren; ci++){
-    int pid = fork();
-    if(pid < 0){
-      printf("fork failed\n");
-      exit(1);
-    }
-
-    if(pid == 0){
-      char name[3];
-      name[0] = 'b';
-      name[1] = 'a' + ci;
-      name[2] = '\0';
-      unlink(name);
-      
-      for(int iters = 0; iters < howmany; iters++){
-        for(int i = 0; i < ci+1; i++){
-          int fd = open(name, O_CREATE | O_RDWR);
-          if(fd < 0){
-            printf("%s: cannot create %s\n", s, name);
-            exit(1);
-          }
-          int sz = sizeof(buf);
-          int cc = write(fd, buf, sz);
-          if(cc != sz){
-            printf("%s: write(%d) ret %d\n", s, sz, cc);
-            exit(1);
-          }
-          close(fd);
-        }
-        unlink(name);
-      }
-
-      unlink(name);
-      exit(0);
-    }
-  }
-
-  for(int ci = 0; ci < nchildren; ci++){
-    int st = 0;
-    wait(&st);
-    if(st != 0)
-      exit(st);
-  }
-  exit(0);
-}
-
 void
 bigfile(char *s)
 {
@@ -2121,7 +2040,7 @@ sbrkbasic(char *s)
   for(i = 0; i < 5000; i++){
     b = sbrk(1);
     if(b != a){
-      printf("%s: sbrk test failed %d %x %x\n", s, i, a, b);
+      printf("%s: sbrk test failed %d %x %x\n", i, a, b);
       exit(1);
     }
     *b = 1;
@@ -2179,7 +2098,7 @@ sbrkmuch(char *s)
   }
   c = sbrk(0);
   if(c != a - PGSIZE){
-    printf("%s: sbrk deallocation produced wrong address, a %x c %x\n", s, a, c);
+    printf("%s: sbrk deallocation produced wrong address, a %x c %x\n", a, c);
     exit(1);
   }
 
@@ -2187,7 +2106,7 @@ sbrkmuch(char *s)
   a = sbrk(0);
   c = sbrk(PGSIZE);
   if(c != a || sbrk(0) != a + PGSIZE){
-    printf("%s: sbrk re-allocation failed, a %x c %x\n", s, a, c);
+    printf("%s: sbrk re-allocation failed, a %x c %x\n", a, c);
     exit(1);
   }
   if(*lastaddr == 99){
@@ -2199,7 +2118,7 @@ sbrkmuch(char *s)
   a = sbrk(0);
   c = sbrk(-(sbrk(0) - oldbrk));
   if(c != a){
-    printf("%s: sbrk downsize failed, a %x c %x\n", s, a, c);
+    printf("%s: sbrk downsize failed, a %x c %x\n", a, c);
     exit(1);
   }
 }
@@ -2218,31 +2137,7 @@ kernmem(char *s)
       exit(1);
     }
     if(pid == 0){
-      printf("%s: oops could read %x = %x\n", s, a, *a);
-      exit(1);
-    }
-    int xstatus;
-    wait(&xstatus);
-    if(xstatus != -1)  // did kernel kill child?
-      exit(1);
-  }
-}
-
-// user code should not be able to write to addresses above MAXVA.
-void
-MAXVAplus(char *s)
-{
-  volatile uint64 a = MAXVA;
-  for( ; a != 0; a <<= 1){
-    int pid;
-    pid = fork();
-    if(pid < 0){
-      printf("%s: fork failed\n", s);
-      exit(1);
-    }
-    if(pid == 0){
-      *(char*)a = 99;
-      printf("%s: oops wrote %x\n", s, a);
+      printf("%s: oops could read %x = %x\n", a, *a);
       exit(1);
     }
     int xstatus;
@@ -2313,7 +2208,7 @@ sbrkfail(char *s)
     }
     // print n so the compiler doesn't optimize away
     // the for loop.
-    printf("%s: allocate a lot of memory succeeded %d\n", s, n);
+    printf("%s: allocate a lot of memory succeeded %d\n", n);
     exit(1);
   }
   wait(&xstatus);
@@ -2366,7 +2261,7 @@ validatetest(char *s)
   }
 }
 
-// does uninitialized data start out zero?
+// does unintialized data start out zero?
 char uninit[10000];
 void
 bsstest(char *s)
@@ -2435,10 +2330,10 @@ fsfull()
     name[3] = '0' + (nfiles % 100) / 10;
     name[4] = '0' + (nfiles % 10);
     name[5] = '\0';
-    printf("writing %s\n", name);
+    printf("%s: writing %s\n", name);
     int fd = open(name, O_CREATE|O_RDWR);
     if(fd < 0){
-      printf("open %s failed\n", name);
+      printf("%s: open %s failed\n", name);
       break;
     }
     int total = 0;
@@ -2449,7 +2344,7 @@ fsfull()
       total += cc;
       fsblocks++;
     }
-    printf("wrote %d bytes\n", total);
+    printf("%s: wrote %d bytes\n", total);
     close(fd);
     if(total == 0)
       break;
@@ -2482,6 +2377,14 @@ void argptest(char *s)
   close(fd);
 }
 
+unsigned long randstate = 1;
+unsigned int
+rand()
+{
+  randstate = randstate * 1664525 + 1013904223;
+  return randstate;
+}
+
 // check that there's an invalid page beneath
 // the user stack, to catch stack overflow.
 void
@@ -2495,7 +2398,7 @@ stacktest(char *s)
     char *sp = (char *) r_sp();
     sp -= PGSIZE;
     // the *sp should cause a trap.
-    printf("%s: stacktest: read below stack %p\n", s, *sp);
+    printf("%s: stacktest: read below stack %p\n", *sp);
     exit(1);
   } else if(pid < 0){
     printf("%s: fork failed\n", s);
@@ -2579,42 +2482,6 @@ sbrkbugs(char *s)
   wait(0);
 
   exit(0);
-}
-
-// if process size was somewhat more than a page boundary, and then
-// shrunk to be somewhat less than that page boundary, can the kernel
-// still copyin() from addresses in the last page?
-void
-sbrklast(char *s)
-{
-  uint64 top = (uint64) sbrk(0);
-  if((top % 4096) != 0)
-    sbrk(4096 - (top % 4096));
-  sbrk(4096);
-  sbrk(10);
-  sbrk(-20);
-  top = (uint64) sbrk(0);
-  char *p = (char *) (top - 64);
-  p[0] = 'x';
-  p[1] = '\0';
-  int fd = open(p, O_RDWR|O_CREATE);
-  write(fd, p, 1);
-  close(fd);
-  fd = open(p, O_RDWR);
-  p[0] = '\0';
-  read(fd, p, 1);
-  if(p[0] != 'x')
-    exit(1);
-}
-
-// does sbrk handle signed int32 wrap-around with
-// negative arguments?
-void
-sbrk8000(char *s)
-{
-  sbrk(0x80000004);
-  volatile char *top = sbrk(0);
-  *(top-1) = *(top-1) + 1;
 }
 
 // regression test. does write() with an invalid buffer pointer cause
@@ -2818,8 +2685,6 @@ main(int argc, char *argv[])
     void (*f)(char *);
     char *s;
   } tests[] = {
-    {MAXVAplus, "MAXVAplus"},
-    {manywrites, "manywrites"},
     {execout, "execout"},
     {copyin, "copyin"},
     {copyout, "copyout"},
@@ -2848,7 +2713,6 @@ main(int argc, char *argv[])
     {subdir, "subdir"},
     {fourfiles, "fourfiles"},
     {sharedfd, "sharedfd"},
-    {dirtest, "dirtest"},
     {exectest, "exectest"},
     {bigargtest, "bigargtest"},
     {bigwrite, "bigwrite"},
@@ -2858,8 +2722,6 @@ main(int argc, char *argv[])
     {kernmem, "kernmem"},
     {sbrkfail, "sbrkfail"},
     {sbrkarg, "sbrkarg"},
-    {sbrklast, "sbrklast"},
-    {sbrk8000, "sbrk8000"},
     {validatetest, "validatetest"},
     {stacktest, "stacktest"},
     {opentest, "opentest"},
@@ -2871,7 +2733,6 @@ main(int argc, char *argv[])
     {iputtest, "iput"},
     {mem, "mem"},
     {pipe1, "pipe1"},
-    {killstatus, "killstatus"},
     {preempt, "preempt"},
     {exitwait, "exitwait"},
     {rmdot, "rmdot"},

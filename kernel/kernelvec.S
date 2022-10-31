@@ -12,7 +12,6 @@ kernelvec:
         addi sp, sp, -256
 
         // save the registers.
-        // 保存当前kernel线程的寄存器,保存在栈上
         sd ra, 0(sp)
         sd sp, 8(sp)
         sd gp, 16(sp)
@@ -46,7 +45,6 @@ kernelvec:
         sd t6, 240(sp)
 
 	// call the C trap handler in trap.c
-    // 调用 kerneltrap来处理
         call kerneltrap
 
         // restore registers.
@@ -95,8 +93,8 @@ kernelvec:
 timervec:
         # start.c has set up the memory that mscratch points to:
         # scratch[0,8,16] : register save area.
-        # scratch[24] : address of CLINT's MTIMECMP register.
-        # scratch[32] : desired interval between interrupts.
+        # scratch[32] : address of CLINT's MTIMECMP register.
+        # scratch[40] : desired interval between interrupts.
         
         csrrw a0, mscratch, a0
         sd a1, 0(a0)
@@ -105,8 +103,8 @@ timervec:
 
         # schedule the next timer interrupt
         # by adding interval to mtimecmp.
-        ld a1, 24(a0) # CLINT_MTIMECMP(hart)
-        ld a2, 32(a0) # interval
+        ld a1, 32(a0) # CLINT_MTIMECMP(hart)
+        ld a2, 40(a0) # interval
         ld a3, 0(a1)
         add a3, a3, a2
         sd a3, 0(a1)

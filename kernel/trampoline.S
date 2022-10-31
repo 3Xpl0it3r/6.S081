@@ -28,7 +28,7 @@ uservec:
         # so that a0 is TRAPFRAME
         csrrw a0, sscratch, a0
 
-        # save the user registers in TRAPFRAME 
+        # save the user registers in TRAPFRAME
         sd ra, 40(a0)
         sd sp, 48(a0)
         sd gp, 56(a0)
@@ -61,8 +61,8 @@ uservec:
         sd t6, 280(a0)
 
 	# save the user a0 in p->trapframe->a0
-        csrr t0, sscratch   # 将sscratch 拷贝到t0
-        sd t0, 112(a0)      # 将t0也就是原来的a0，放到p->trapframe->a0
+        csrr t0, sscratch
+        sd t0, 112(a0)
 
         # restore kernel stack pointer from p->trapframe->kernel_sp
         ld sp, 8(a0)
@@ -93,14 +93,13 @@ userret:
         # a1: user page table, for satp.
 
         # switch to the user page table.
-        # 切换页表 ,然后刷新TLB 缓存
         csrw satp, a1
         sfence.vma zero, zero
 
         # put the saved user a0 in sscratch, so we
         # can swap it with our a0 (TRAPFRAME) in the last step.
-        ld t0, 112(a0)  // 将保存在trapframe寄存器里面的值a0保存到t0
-        csrw sscratch, t0       //  然后原始的a0寄存器的值存放到sscratch寄存器里面
+        ld t0, 112(a0)
+        csrw sscratch, t0
 
         # restore all but a0 from TRAPFRAME
         ld ra, 40(a0)

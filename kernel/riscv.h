@@ -111,7 +111,7 @@ w_mie(uint64 x)
   asm volatile("csrw mie, %0" : : "r" (x));
 }
 
-// supervisor exception program counter, holds the
+// machine exception program counter, holds the
 // instruction address to which a return from
 // exception will go.
 static inline void 
@@ -179,18 +179,6 @@ static inline void
 w_mtvec(uint64 x)
 {
   asm volatile("csrw mtvec, %0" : : "r" (x));
-}
-
-static inline void
-w_pmpcfg0(uint64 x)
-{
-  asm volatile("csrw pmpcfg0, %0" : : "r" (x));
-}
-
-static inline void
-w_pmpaddr0(uint64 x)
-{
-  asm volatile("csrw pmpaddr0, %0" : : "r" (x));
 }
 
 // use riscv's sv39 page table scheme.
@@ -269,7 +257,7 @@ r_time()
   return x;
 }
 
-// enable device interrupts // 启用设备中断
+// enable device interrupts
 static inline void
 intr_on()
 {
@@ -322,19 +310,6 @@ r_ra()
   asm volatile("mv %0, ra" : "=r" (x) );
   return x;
 }
-
-
-// for lab custome code
-// current function frame pointer, this is stored in register s0
-static inline uint64
-r_fp()
-{
-  uint64 x;
-  asm volatile("mv %0, s0" : "=r" (x) );
-  return x;
-}
-
-
 
 // flush the TLB.
 static inline void
