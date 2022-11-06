@@ -5,6 +5,8 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "proc.h"
 
 /*
  * the kernel's page table.
@@ -101,10 +103,15 @@ walkaddr(pagetable_t pagetable, uint64 va)
     return 0;
 
   pte = walk(pagetable, va, 0);
-  if(pte == 0)
+  if (pte == 0 || (*pte & PTE_V) == 0) {
+      if (lazyallocate(myproc(), PGROUNDDOWN(va))) {
+          return 0;
+      }
+  }
+  /* if(pte == 0)
     return 0;
   if((*pte & PTE_V) == 0)
-    return 0;
+    return 0; */
   if((*pte & PTE_U) == 0)
     return 0;
   pa = PTE2PA(*pte);
@@ -180,10 +187,18 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     panic("uvmunmap: not aligned");
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    // 这里pte walk 出来为0，意味着PTE不存在,因为是lazyallocate,所以会有很多这种PTE_V的PTE,因此这里需要skip掉它
     if((pte = walk(pagetable, a, 0)) == 0)
+        {
+            continue;
       panic("uvmunmap: walk");
-    if((*pte & PTE_V) == 0)
+        }
+    if((*pte & PTE_V) == 0) // debug可以看到这个pte还没有映射
+        {
+            continue;
+            // printf("debug not mappped pg %p pte %p va %p\n", pagetable, pte,va);
       panic("uvmunmap: not mapped");
+        }
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
     if(do_free){
@@ -295,7 +310,9 @@ void
 uvmfree(pagetable_t pagetable, uint64 sz)
 {
   if(sz > 0)
+    {
     uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1);
+    }
   freewalk(pagetable);
 }
 
@@ -314,10 +331,17 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walk(old, i, 0)) == 0)
+    // walk(0) ==0 意味着pte不存在的(lazyallocate)
+    if((pte = walk(old, i, 0)) == 0) 
+        {
+            continue;
       panic("uvmcopy: pte should exist");
+        }
     if((*pte & PTE_V) == 0)
+        {
+            continue;
       panic("uvmcopy: page not present");
+        }
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)

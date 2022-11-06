@@ -29,6 +29,30 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+// for lazy allocate, if allocate failed or virtual address is not invalid ,then return none zero, else return 0
+int
+lazyallocate(struct proc *p, uint64 va)
+{
+    if (va >= MAXVA) {
+        return -1;
+    }
+    // kill a process if page-faults on a virtual address highter than any allocated with sbrk()
+    // case problem is that, a user to an address that is too large will result in a page being allocated, but it will not be freed and removed from pagemap when the process exists, which will triger `freewalk: leaf` panic
+    if (va >= p->sz || va <= PGROUNDDOWN(p->trapframe->sp))
+        return -1;
+
+    char *mem = kalloc();
+    // if allocate memory failed, then kill this process
+    if (mem == 0) {
+        return -1;
+    }
+    if (mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U) !=0) {
+        kfree(mem);
+        return -1;
+    }
+    return 0;
+}
+
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -68,9 +92,15 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    p->killed = 1;
+    if (r_scause() == 13 || r_scause() == 15) {
+        if (lazyallocate(p, r_stval())) {
+            p->killed = 1;
+        }
+        /* printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval()); */
+    } else {
+        p->killed = 1;
+    }
   }
 
   if(p->killed)

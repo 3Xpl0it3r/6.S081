@@ -48,8 +48,12 @@ sparse_memory_unmap(char *s)
   }
   new_end = prev_end + REGION_SZ;
 
+    int count = 0;
   for (i = prev_end + PGSIZE; i < new_end; i += PGSIZE * PGSIZE)
+        {
+    count ++;
     *(char **)i = i;
+        }
 
   for (i = prev_end + PGSIZE; i < new_end; i += PGSIZE * PGSIZE) {
     pid = fork();
@@ -88,7 +92,7 @@ oom(char *s)
     exit(0);
   } else {
     int xstatus;
-    wait(&xstatus);
+    wait(&xstatus);  // xstatus == UNUSED 测试失败
     exit(xstatus == 0);
   }
 }
@@ -110,7 +114,7 @@ run(void f(char *), char *s) {
     exit(0);
   } else {
     wait(&xstatus);
-    if(xstatus != 0) 
+    if(xstatus != 0)  // -->意味着 np->status  ==0(UNUSED) 测试失败
       printf("test %s: FAILED\n", s);
     else
       printf("test %s: OK\n", s);

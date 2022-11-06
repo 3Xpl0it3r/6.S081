@@ -140,7 +140,9 @@ freeproc(struct proc *p)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
   if(p->pagetable)
+    {
     proc_freepagetable(p->pagetable, p->sz);
+    }
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -417,7 +419,8 @@ wait(uint64 addr)
         // because only the parent changes it, and we're the parent.
         acquire(&np->lock);
         havekids = 1;
-        if(np->state == ZOMBIE){
+        if(np->state == ZOMBIE){ // ZOMBIE = 4
+        // 但是这个地方显然只有在status = ZOMBIE 的时候才写入xstatus
           // Found one.
           pid = np->pid;
           if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
@@ -693,4 +696,26 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+void _vmprint(pagetable_t pagetable, int level){
+    for (int index = 0; index < 512; index ++) {
+        pte_t pte = pagetable[index];
+        if ((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0) {
+            pagetable_t child = (pagetable_t)PTE2PA(pte);
+            for (int pos = 0; pos < level; pos ++) {
+                printf(".. ");
+            }
+            printf("..%d: pte  %p  pa  %p\n", index, pte, child);
+            _vmprint(child, level + 1);
+        } else if (pte & PTE_V){
+            uint64  child = PTE2PA(pte);
+            printf(".. .. ..%d: pte %p pa %p\n", index,pte, child);
+        }
+    }
+}
+
+
+void vmprint(pagetable_t pagetable){
+    _vmprint(myproc()->pagetable, 0);
 }

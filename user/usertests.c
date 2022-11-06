@@ -2232,7 +2232,7 @@ sbrkarg(char *s)
     exit(1);
   }
   if ((n = write(fd, a, PGSIZE)) < 0) {
-    printf("%s: write sbrk failed\n", s);
+    printf("%s: write sbrk failed  %d\n", s, n);
     exit(1);
   }
   close(fd);
@@ -2722,8 +2722,8 @@ main(int argc, char *argv[])
     {kernmem, "kernmem"},
     {sbrkfail, "sbrkfail"},
     {sbrkarg, "sbrkarg"},
-    {validatetest, "validatetest"},
-    {stacktest, "stacktest"},
+    {validatetest, "validatetest"}, 
+    {stacktest, "stacktest"}, // should fix it, remap
     {opentest, "opentest"},
     {writetest, "writetest"},
     {writebig, "writebig"},
