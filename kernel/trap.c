@@ -29,6 +29,74 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+
+int
+pgflt_cow_checker(pagetable_t pagetable, uint64 va)
+{
+    if (va >= MAXVA) {
+        return -1;
+    }
+    if (va > myproc()->sz) {
+        return -1;
+    }
+    pte_t *pte = walk(pagetable, PGROUNDDOWN(va), 0);
+    if (pte == 0) {
+        return -1;
+    }
+    // if page userspace cannot accessable, return -1
+    if ((PTE_FLAGS(*pte) & PTE_U) == 0) {
+        return -1;
+    }
+    // if pte mapping is not existed, return -1
+    if ((PTE_FLAGS(*pte) & PTE_V) == 0) {
+        return -1;
+    }
+    // if pte is not cow mapping, return -1
+    if ((PTE_FLAGS(*pte) & PTE_COW) == 0) {
+        return -1;
+    }
+    // if pte has writebale flag, then it is also a invalid cow pte mapping
+    if ((PTE_FLAGS(*pte) & PTE_W)) {
+        return -1;
+    }
+    return 0;
+}
+
+
+int 
+pgflt_cow_handler(pagetable_t pagetable, uint64 va)
+{
+    uint64 pa;
+    pte_t *pte;
+    uint flags;
+    char *mem;
+
+    if ((pte = walk(pagetable, PGROUNDDOWN(va), 0)) == 0) {
+        return -1;
+    }
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
+    flags |= PTE_W;
+    flags &= ~PTE_COW;
+
+    if ((mem = kalloc()) == 0) {
+        // panic("pgflt error alloc memory failed\n");
+        return -1;
+    }
+
+    memset((void*)mem,1, PGSIZE);
+    memmove((void*)mem, (void*)pa, PGSIZE);
+
+    uvmunmap(pagetable, PGROUNDDOWN(va), 1, 1);
+
+    if (mappages(pagetable, va, PGSIZE, (uint64)mem, flags) != 0) {
+        kfree(mem);
+        // panic("cow alloc failedd\n");
+        return -1;
+    }
+
+    return 0;
+}
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -68,9 +136,18 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    p->killed = 1;
+    if (r_scause() == 15) {
+        if (pgflt_cow_checker(myproc()->pagetable, PGROUNDDOWN(r_stval())) == 0){
+            if (pgflt_cow_handler(myproc()->pagetable, PGROUNDDOWN(r_stval()))!=0){
+                p->killed = 1;
+            }
+        } else {
+            p->killed = 1;
+        }
+
+    } else {
+        p->killed = 1;
+    }
   }
 
   if(p->killed)
